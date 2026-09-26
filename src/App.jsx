@@ -10,6 +10,7 @@ import Receipts from './pages/Receipts';
 import Deliveries from './pages/Deliveries';
 import Transfers from './pages/Transfers';
 import Adjustments from './pages/Adjustments';
+import StockLedger from './pages/StockLedger';
 import './index.css';
 
 function App() {
@@ -65,6 +66,14 @@ function App() {
             element={
               <ProtectedRoute>
                 <Adjustments />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/stock-ledger"
+            element={
+              <ProtectedRoute>
+                <StockLedger />
               </ProtectedRoute>
             }
           />

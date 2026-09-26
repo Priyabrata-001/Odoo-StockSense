@@ -30,7 +30,6 @@ export default function AppLayout({ children, pageTitle }) {
   };
 
   const comingSoonItems = [
-    { name: 'Stock Ledger', icon: '📒' },
     { name: 'Warehouses', icon: '🏭' }
   ];
 
@@ -89,6 +88,13 @@ export default function AppLayout({ children, pageTitle }) {
             onClick={handleNavClick}
           >
             <span className="nav-icon">📋</span> Adjustments
+          </NavLink>
+          <NavLink
+            to="/stock-ledger"
+            className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`}
+            onClick={handleNavClick}
+          >
+            <span className="nav-icon">📒</span> Stock Ledger
           </NavLink>
 
           <div className="nav-section-label">Coming Soon</div>
