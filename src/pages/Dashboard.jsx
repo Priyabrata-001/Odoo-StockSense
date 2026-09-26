@@ -1,54 +1,140 @@
-import { useNavigate } from 'react-router-dom';
-import { useAuth } from '../contexts/AuthContext';
-import '../styles/auth.css';
+import { useState, useEffect } from 'react';
+import { Link } from 'react-router-dom';
+import AppLayout from '../components/AppLayout';
+import { getProductStats, getLowStockProducts, getActivityLog, seedProducts } from '../utils/inventoryStorage';
+import '../styles/app.css';
 
-const Dashboard = () => {
-  const { currentUser, logout } = useAuth();
-  const navigate = useNavigate();
+export default function Dashboard() {
+  const [stats, setStats] = useState({
+    totalProducts: 0,
+    lowStockCount: 0,
+    outOfStockCount: 0,
+  });
+  const [lowStockProducts, setLowStockProducts] = useState([]);
+  const [recentActivity, setRecentActivity] = useState([]);
 
-  const handleLogout = () => {
-    logout();
-    navigate('/login');
+  useEffect(() => {
+    seedProducts();
+    setStats(getProductStats());
+    setLowStockProducts(getLowStockProducts());
+    setRecentActivity(getActivityLog(5));
+  }, []);
+
+  const formatTimeAgo = (timestamp) => {
+    const now = new Date();
+    const date = new Date(timestamp);
+    const diffMs = now - date;
+    const diffMins = Math.floor(diffMs / 60000);
+    const diffHours = Math.floor(diffMs / 3600000);
+    const diffDays = Math.floor(diffMs / 86400000);
+    
+    if (diffMins < 1) return 'Just now';
+    if (diffMins < 60) return `${diffMins}m ago`;
+    if (diffHours < 24) return `${diffHours}h ago`;
+    if (diffDays < 7) return `${diffDays}d ago`;
+    return date.toLocaleDateString();
   };
 
   return (
-    <div className="dashboard-page">
-      <header className="dashboard-header">
-        <div className="dashboard-brand">
-          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-            <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"></path>
-            <polyline points="3.27 6.96 12 12.01 20.73 6.96"></polyline>
-            <line x1="12" y1="22.08" x2="12" y2="12"></line>
-          </svg>
-          <span>StockSense</span>
+    <AppLayout pageTitle="Dashboard">
+      {/* KPI Cards */}
+      <div className="kpi-grid">
+        {/* Total Products */}
+        <div className="kpi-card">
+          <div className="kpi-icon products">📦</div>
+          <div className="kpi-value">{stats.totalProducts}</div>
+          <div className="kpi-label">Total Products</div>
         </div>
-        <div className="dashboard-user-section">
-          <span className="dashboard-user-name">
-            Welcome, {currentUser?.loginId || 'User'}
-          </span>
-          <button onClick={handleLogout} className="logout-btn">
-            Logout
-          </button>
+        {/* Low / Out of Stock */}
+        <div className="kpi-card">
+          <div className="kpi-icon low-stock">⚠️</div>
+          <div className="kpi-value">{stats.lowStockCount + stats.outOfStockCount}</div>
+          <div className="kpi-label">Low / Out of Stock</div>
         </div>
-      </header>
+        {/* Pending Receipts */}
+        <div className="kpi-card">
+          <div className="kpi-icon receipts">📥</div>
+          <div className="kpi-value">0</div>
+          <div className="kpi-label">Pending Receipts</div>
+        </div>
+        {/* Pending Deliveries */}
+        <div className="kpi-card">
+          <div className="kpi-icon deliveries">📤</div>
+          <div className="kpi-value">0</div>
+          <div className="kpi-label">Pending Deliveries</div>
+        </div>
+        {/* Internal Transfers */}
+        <div className="kpi-card">
+          <div className="kpi-icon transfers">🔄</div>
+          <div className="kpi-value">0</div>
+          <div className="kpi-label">Internal Transfers</div>
+        </div>
+      </div>
 
-      <main className="dashboard-content">
-        <div className="dashboard-welcome">
-          <h1>Welcome to StockSense</h1>
-          <p>Inventory Dashboard</p>
+      {/* Quick Actions */}
+      <div className="quick-actions">
+        <Link to="/products" className="quick-action-btn">
+          <span className="qa-icon">➕</span> Add Product
+        </Link>
+        <Link to="/products" className="quick-action-btn">
+          <span className="qa-icon">📊</span> View Inventory
+        </Link>
+        <button className="quick-action-btn" disabled title="Coming Soon">
+          <span className="qa-icon">📥</span> New Receipt
+        </button>
+        <button className="quick-action-btn" disabled title="Coming Soon">
+          <span className="qa-icon">📤</span> New Delivery
+        </button>
+      </div>
 
-          <div className="placeholder-card">
-            <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1" strokeLinecap="round" strokeLinejoin="round" style={{ opacity: 0.3, marginBottom: '16px' }}>
-              <rect x="2" y="7" width="20" height="14" rx="2" ry="2"></rect>
-              <path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"></path>
-            </svg>
-            <p>Your inventory modules will appear here.</p>
-            <span className="placeholder-hint">Products, Receipts, Deliveries, Transfers, Adjustments & Stock Ledger</span>
+      {/* Two-column grid: Activity + Low Stock */}
+      <div className="dashboard-grid">
+        {/* Recent Activity */}
+        <div className="dashboard-section">
+          <div className="section-header">
+            <h2 className="section-title">Recent Activity</h2>
+          </div>
+          <div className="activity-list">
+            {recentActivity.length === 0 ? (
+              <p style={{ color: 'var(--text-muted)', fontSize: '14px' }}>No recent activity</p>
+            ) : (
+              recentActivity.map(activity => (
+                <div key={activity.id} className="activity-item">
+                  <div className={`activity-icon ${activity.type.includes('added') ? 'added' : activity.type.includes('deleted') ? 'deleted' : 'updated'}`}>
+                    {activity.type.includes('added') ? '➕' : activity.type.includes('deleted') ? '🗑️' : '✏️'}
+                  </div>
+                  <div className="activity-text">
+                    <p>{activity.description}</p>
+                    <span>{formatTimeAgo(activity.timestamp)}</span>
+                  </div>
+                </div>
+              ))
+            )}
           </div>
         </div>
-      </main>
-    </div>
-  );
-};
 
-export default Dashboard;
+        {/* Low Stock Alerts */}
+        <div className="dashboard-section">
+          <div className="section-header">
+            <h2 className="section-title">Low Stock Alerts</h2>
+            <Link to="/products" className="section-action">View All →</Link>
+          </div>
+          <div className="low-stock-list">
+            {lowStockProducts.length === 0 ? (
+              <p style={{ color: 'var(--text-muted)', fontSize: '14px' }}>All products well stocked ✅</p>
+            ) : (
+              lowStockProducts.slice(0, 6).map(product => (
+                <div key={product.id} className="low-stock-item">
+                  <span className="product-name">{product.name}</span>
+                  <span className={`stock-badge ${product.currentStock === 0 ? 'danger' : 'warning'}`}>
+                    {product.currentStock === 0 ? 'Out of Stock' : `${product.currentStock} ${product.unit}`}
+                  </span>
+                </div>
+              ))
+            )}
+          </div>
+        </div>
+      </div>
+    </AppLayout>
+  );
+}
