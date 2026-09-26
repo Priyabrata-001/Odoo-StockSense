@@ -400,3 +400,141 @@ export const seedProducts = () => {
     }
   }
 };
+
+// ==========================================
+// RECEIPTS & DELIVERIES
+// ==========================================
+
+const RECEIPTS_KEY = 'stocksense_receipts';
+const DELIVERIES_KEY = 'stocksense_deliveries';
+
+// Receipts
+export const getReceipts = () => {
+  return getFromStorage(RECEIPTS_KEY);
+};
+
+export const saveReceipt = (receiptData) => {
+  const receipts = getReceipts();
+  const newReceipt = {
+    ...receiptData,
+    id: Date.now().toString(),
+    status: 'PENDING',
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString()
+  };
+  
+  receipts.push(newReceipt);
+  saveToStorage(RECEIPTS_KEY, receipts);
+  
+  addActivity(
+    'receipt_created',
+    `Created receipt for ${newReceipt.quantity} units from ${newReceipt.supplierName}`,
+    newReceipt.productId
+  );
+  
+  return newReceipt;
+};
+
+export const validateReceipt = (id) => {
+  const receipts = getReceipts();
+  const index = receipts.findIndex(r => r.id === id);
+  if (index === -1) return false;
+  
+  const receipt = receipts[index];
+  if (receipt.status === 'VALIDATED') return false;
+  
+  // Update stock
+  const products = getProducts();
+  const productIndex = products.findIndex(p => p.id === receipt.productId);
+  if (productIndex === -1) return false;
+  
+  const product = products[productIndex];
+  product.currentStock += Number(receipt.quantity);
+  product.updatedAt = new Date().toISOString();
+  saveToStorage(PRODUCTS_KEY, products);
+  
+  // Update receipt
+  receipt.status = 'VALIDATED';
+  receipt.updatedAt = new Date().toISOString();
+  saveToStorage(RECEIPTS_KEY, receipts);
+  
+  addActivity(
+    'receipt_validated',
+    `Validated receipt: +${receipt.quantity} ${product.unit} of ${product.name}`,
+    product.id,
+    product.name
+  );
+  
+  return true;
+};
+
+// Deliveries
+export const getDeliveries = () => {
+  return getFromStorage(DELIVERIES_KEY);
+};
+
+export const saveDelivery = (deliveryData) => {
+  const deliveries = getDeliveries();
+  const newDelivery = {
+    ...deliveryData,
+    id: Date.now().toString(),
+    status: 'CREATED',
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString()
+  };
+  
+  deliveries.push(newDelivery);
+  saveToStorage(DELIVERIES_KEY, deliveries);
+  
+  addActivity(
+    'delivery_created',
+    `Created delivery order for ${newDelivery.quantity} units`,
+    newDelivery.productId
+  );
+  
+  return newDelivery;
+};
+
+export const updateDeliveryStatus = (id, status) => {
+  const deliveries = getDeliveries();
+  const index = deliveries.findIndex(d => d.id === id);
+  if (index === -1) return { success: false, message: 'Delivery not found' };
+  
+  const delivery = deliveries[index];
+  if (delivery.status === 'VALIDATED') return { success: false, message: 'Already validated' };
+  
+  if (status === 'VALIDATED') {
+    // Check stock and update
+    const products = getProducts();
+    const productIndex = products.findIndex(p => p.id === delivery.productId);
+    if (productIndex === -1) return { success: false, message: 'Product not found' };
+    
+    const product = products[productIndex];
+    if (product.currentStock < Number(delivery.quantity)) {
+      return { success: false, message: `Insufficient stock. Available: ${product.currentStock}` };
+    }
+    
+    product.currentStock -= Number(delivery.quantity);
+    product.updatedAt = new Date().toISOString();
+    saveToStorage(PRODUCTS_KEY, products);
+    
+    addActivity(
+      'delivery_validated',
+      `Validated delivery: -${delivery.quantity} ${product.unit} of ${product.name}`,
+      product.id,
+      product.name
+    );
+  } else {
+     addActivity(
+      'delivery_updated',
+      `Delivery status updated to ${status}`,
+      delivery.productId
+    );
+  }
+  
+  delivery.status = status;
+  delivery.updatedAt = new Date().toISOString();
+  saveToStorage(DELIVERIES_KEY, deliveries);
+  
+  return { success: true };
+};

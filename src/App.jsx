@@ -6,6 +6,8 @@ import SignUp from './pages/SignUp';
 import ForgotPassword from './pages/ForgotPassword';
 import Dashboard from './pages/Dashboard';
 import Products from './pages/Products';
+import Receipts from './pages/Receipts';
+import Deliveries from './pages/Deliveries';
 import './index.css';
 
 function App() {
@@ -29,6 +31,22 @@ function App() {
             element={
               <ProtectedRoute>
                 <Products />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/receipts"
+            element={
+              <ProtectedRoute>
+                <Receipts />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/deliveries"
+            element={
+              <ProtectedRoute>
+                <Deliveries />
               </ProtectedRoute>
             }
           />

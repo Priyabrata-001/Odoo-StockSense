@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import AppLayout from '../components/AppLayout';
-import { getProductStats, getLowStockProducts, getActivityLog, seedProducts } from '../utils/inventoryStorage';
+import { getProductStats, getLowStockProducts, getActivityLog, seedProducts, getReceipts, getDeliveries } from '../utils/inventoryStorage';
 import '../styles/app.css';
 
 export default function Dashboard() {
@@ -13,11 +13,16 @@ export default function Dashboard() {
   const [lowStockProducts, setLowStockProducts] = useState([]);
   const [recentActivity, setRecentActivity] = useState([]);
 
+  const [pendingReceipts, setPendingReceipts] = useState(0);
+  const [pendingDeliveries, setPendingDeliveries] = useState(0);
+
   useEffect(() => {
     seedProducts();
     setStats(getProductStats());
     setLowStockProducts(getLowStockProducts());
     setRecentActivity(getActivityLog(5));
+    setPendingReceipts(getReceipts().filter(r => r.status === 'PENDING').length);
+    setPendingDeliveries(getDeliveries().filter(d => d.status !== 'VALIDATED').length);
   }, []);
 
   const formatTimeAgo = (timestamp) => {
@@ -54,13 +59,13 @@ export default function Dashboard() {
         {/* Pending Receipts */}
         <div className="kpi-card">
           <div className="kpi-icon receipts">📥</div>
-          <div className="kpi-value">0</div>
+          <div className="kpi-value">{pendingReceipts}</div>
           <div className="kpi-label">Pending Receipts</div>
         </div>
         {/* Pending Deliveries */}
         <div className="kpi-card">
           <div className="kpi-icon deliveries">📤</div>
-          <div className="kpi-value">0</div>
+          <div className="kpi-value">{pendingDeliveries}</div>
           <div className="kpi-label">Pending Deliveries</div>
         </div>
         {/* Internal Transfers */}
@@ -79,12 +84,12 @@ export default function Dashboard() {
         <Link to="/products" className="quick-action-btn">
           <span className="qa-icon">📊</span> View Inventory
         </Link>
-        <button className="quick-action-btn" disabled title="Coming Soon">
+        <Link to="/receipts" className="quick-action-btn">
           <span className="qa-icon">📥</span> New Receipt
-        </button>
-        <button className="quick-action-btn" disabled title="Coming Soon">
+        </Link>
+        <Link to="/deliveries" className="quick-action-btn">
           <span className="qa-icon">📤</span> New Delivery
-        </button>
+        </Link>
       </div>
 
       {/* Two-column grid: Activity + Low Stock */}

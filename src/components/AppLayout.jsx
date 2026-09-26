@@ -30,8 +30,6 @@ export default function AppLayout({ children, pageTitle }) {
   };
 
   const comingSoonItems = [
-    { name: 'Receipts', icon: '📥' },
-    { name: 'Deliveries', icon: '📤' },
     { name: 'Transfers', icon: '🔄' },
     { name: 'Adjustments', icon: '📋' },
     { name: 'Stock Ledger', icon: '📒' }
@@ -64,6 +62,20 @@ export default function AppLayout({ children, pageTitle }) {
             onClick={handleNavClick}
           >
             <span className="nav-icon">📦</span> Products
+          </NavLink>
+          <NavLink
+            to="/receipts"
+            className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`}
+            onClick={handleNavClick}
+          >
+            <span className="nav-icon">📥</span> Receipts
+          </NavLink>
+          <NavLink
+            to="/deliveries"
+            className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`}
+            onClick={handleNavClick}
+          >
+            <span className="nav-icon">📤</span> Deliveries
           </NavLink>
 
           <div className="nav-section-label">Coming Soon</div>
