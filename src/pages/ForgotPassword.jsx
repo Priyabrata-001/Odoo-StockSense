@@ -1,8 +1,6 @@
 import { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
-import { findUserByLoginId, findUserByEmail } from '../utils/userStorage';
-import { validatePassword, validateConfirmPassword } from '../utils/validators';
 import '../styles/auth.css';
 
 const ForgotPassword = () => {
@@ -40,16 +38,8 @@ const ForgotPassword = () => {
 
     setLoading(true);
 
-    // Simulate async lookup (modular — replace with real API call later)
+    // Simulate OTP send (skip actual lookup — just move to step 2)
     setTimeout(() => {
-      const user = findUserByLoginId(identifier.trim()) || findUserByEmail(identifier.trim());
-
-      if (!user) {
-        setError('No account found with the provided Login ID or Email.');
-        setLoading(false);
-        return;
-      }
-
       setStep(2);
       setSuccess('OTP has been sent to your registered email.');
       setLoading(false);
@@ -69,8 +59,6 @@ const ForgotPassword = () => {
 
     setLoading(true);
 
-    // Mock OTP verification — accepts any 6-digit code
-    // Replace this block with a real OTP service call later
     setTimeout(() => {
       setStep(3);
       setSuccess('');
@@ -79,36 +67,37 @@ const ForgotPassword = () => {
   };
 
   // Step 3: Reset password
-  const handleResetPassword = (e) => {
+  const handleResetPassword = async (e) => {
     e.preventDefault();
     setError('');
 
-    // Validate new password strength
-    const passwordResult = validatePassword(newPassword);
-    if (!passwordResult.valid) {
-      setError(passwordResult.message);
+    if (!newPassword || newPassword.length < 6) {
+      setError('Password must be at least 6 characters.');
       return;
     }
 
-    // Validate confirm password
-    const confirmResult = validateConfirmPassword(newPassword, confirmNewPassword);
-    if (!confirmResult.valid) {
-      setError(confirmResult.message);
+    if (newPassword !== confirmNewPassword) {
+      setError('Passwords do not match.');
       return;
     }
 
     setLoading(true);
 
-    const result = resetPassword(identifier.trim(), newPassword);
+    try {
+      const result = await resetPassword(identifier.trim(), newPassword);
 
-    if (result.success) {
-      setSuccess('Password reset successfully! Redirecting to login...');
-      setLoading(false);
-      setTimeout(() => {
-        navigate('/login');
-      }, 2000);
-    } else {
-      setError(result.message || 'Failed to reset password.');
+      if (result.success) {
+        setSuccess('Password reset successfully! Redirecting to login...');
+        setLoading(false);
+        setTimeout(() => {
+          navigate('/login');
+        }, 2000);
+      } else {
+        setError(result.message || 'Failed to reset password.');
+        setLoading(false);
+      }
+    } catch {
+      setError('Failed to reset password. Please try again.');
       setLoading(false);
     }
   };

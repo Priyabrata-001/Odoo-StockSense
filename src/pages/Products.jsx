@@ -1,12 +1,11 @@
 import { useState, useEffect, useCallback } from 'react';
 import AppLayout from '../components/AppLayout';
 import ProductModal from '../components/ProductModal';
-import { getProducts, deleteProduct, searchProducts, getProductsByCategory, getCategories, seedProducts } from '../utils/inventoryStorage';
+import { apiGetProducts, apiDeleteProduct, apiGetCategories } from '../utils/api';
 import '../styles/app.css';
 
 export default function Products() {
   const [products, setProducts] = useState([]);
-  const [allProducts, setAllProducts] = useState([]);
   const [categories, setCategories] = useState([]);
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('all');
@@ -17,36 +16,30 @@ export default function Products() {
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [deletingProduct, setDeletingProduct] = useState(null);
 
-  // Initialize
-  useEffect(() => {
-    seedProducts();
-    setCategories(getCategories());
-  }, []);
-
-  const loadProducts = useCallback(() => {
-    const all = getProducts();
-    setAllProducts(all);
-    
-    let filtered = all;
-
-    if (searchQuery) {
-      filtered = searchProducts(searchQuery);
+  const loadProducts = useCallback(async () => {
+    try {
+      const data = await apiGetProducts(searchQuery, selectedCategory);
+      setProducts(data || []);
+    } catch (err) {
+      console.error('Failed to load products:', err);
     }
-    
-    if (selectedCategory !== 'all') {
-      if (searchQuery) {
-         filtered = filtered.filter(p => p.category === selectedCategory);
-      } else {
-         filtered = getProductsByCategory(selectedCategory);
-      }
-    }
-    
-    setProducts(filtered);
   }, [searchQuery, selectedCategory]);
+
+  const loadCategories = async () => {
+    try {
+      const cats = await apiGetCategories();
+      setCategories(cats || []);
+    } catch (err) {
+      console.error('Failed to load categories:', err);
+    }
+  };
+
+  useEffect(() => {
+    loadCategories();
+  }, []);
 
   useEffect(() => {
     loadProducts();
-    setCategories(getCategories());
   }, [loadProducts]);
 
   const handleAddProduct = () => {
@@ -62,7 +55,7 @@ export default function Products() {
   const handleModalClose = () => {
     setShowModal(false);
     loadProducts();
-    setCategories(getCategories());
+    loadCategories();
   };
 
   const handleDeleteClick = (product) => {
@@ -70,11 +63,15 @@ export default function Products() {
     setShowDeleteConfirm(true);
   };
 
-  const handleDeleteConfirm = () => {
+  const handleDeleteConfirm = async () => {
     if (deletingProduct) {
-      deleteProduct(deletingProduct.id);
-      loadProducts();
-      setCategories(getCategories());
+      try {
+        await apiDeleteProduct(deletingProduct.id);
+        await loadProducts();
+        await loadCategories();
+      } catch (err) {
+        console.error('Failed to delete product:', err);
+      }
     }
     setShowDeleteConfirm(false);
     setDeletingProduct(null);

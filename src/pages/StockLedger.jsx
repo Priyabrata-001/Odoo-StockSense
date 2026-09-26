@@ -1,6 +1,6 @@
-import { useState, useMemo } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import AppLayout from '../components/AppLayout';
-import { getProducts, getReceipts, getDeliveries, getTransfers, getAdjustments, getLocations } from '../utils/inventoryStorage';
+import { apiGetMovements, apiGetLocations } from '../utils/api';
 import '../styles/app.css';
 
 export default function StockLedger() {
@@ -8,72 +8,23 @@ export default function StockLedger() {
   const [typeFilter, setTypeFilter] = useState('All');
   const [locationFilter, setLocationFilter] = useState('All');
   const [statusFilter, setStatusFilter] = useState('All');
+  const [movements, setMovements] = useState([]);
+  const [loading, setLoading] = useState(true);
 
-  const locations = useMemo(() => getLocations(), []);
-  
-  const movements = useMemo(() => {
-    const products = getProducts();
-    const productMap = products.reduce((acc, p) => {
-      acc[p.id] = { name: p.name, sku: p.sku };
-      return acc;
-    }, {});
-
-    const receipts = getReceipts().map(r => ({
-      id: r.id,
-      date: r.createdAt,
-      type: 'Receipt',
-      productId: r.productId,
-      quantity: `+${r.quantity}`,
-      source: r.supplierName,
-      destination: 'Main Store',
-      status: r.status,
-      rawDate: r.createdAt
-    }));
-
-    const deliveries = getDeliveries().map(d => ({
-      id: d.id,
-      date: d.createdAt,
-      type: 'Delivery',
-      productId: d.productId,
-      quantity: `-${d.quantity}`,
-      source: 'Main Store',
-      destination: 'Customer',
-      status: d.status,
-      rawDate: d.createdAt
-    }));
-
-    const transfers = getTransfers().map(t => ({
-      id: t.id,
-      date: t.createdAt,
-      type: 'Transfer',
-      productId: t.productId,
-      quantity: t.quantity,
-      source: t.sourceLocation,
-      destination: t.destinationLocation,
-      status: t.status,
-      rawDate: t.createdAt
-    }));
-
-    const adjustments = getAdjustments().map(a => ({
-      id: a.id,
-      date: a.createdAt,
-      type: 'Adjustment',
-      productId: a.productId,
-      quantity: a.difference > 0 ? `+${a.difference}` : a.difference.toString(),
-      source: '-',
-      destination: a.location,
-      status: 'VALIDATED',
-      rawDate: a.createdAt
-    }));
-
-    const allMovements = [...receipts, ...deliveries, ...transfers, ...adjustments].map(m => ({
-      ...m,
-      productName: productMap[m.productId]?.name || 'Unknown',
-      sku: productMap[m.productId]?.sku || 'Unknown'
-    }));
-
-    return allMovements.sort((a, b) => new Date(b.rawDate) - new Date(a.rawDate));
+  useEffect(() => {
+    loadData();
   }, []);
+
+  const loadData = async () => {
+    try {
+      const data = await apiGetMovements();
+      setMovements(data || []);
+    } catch (err) {
+      console.error('Failed to load movements:', err);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const dynamicLocations = useMemo(() => {
     const locSet = new Set();
@@ -220,7 +171,7 @@ export default function StockLedger() {
             ) : (
               <tr>
                 <td colSpan="7" style={{ textAlign: 'center', padding: '20px' }}>
-                  No movements match your filters
+                  {loading ? 'Loading...' : 'No movements match your filters'}
                 </td>
               </tr>
             )}

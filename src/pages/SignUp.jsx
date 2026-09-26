@@ -34,22 +34,27 @@ const SignUp = () => {
     }
   };
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
     setLoading(true);
     setErrors({});
 
-    const result = signup(
-      formData.loginId,
-      formData.email,
-      formData.password,
-      formData.confirmPassword
-    );
+    try {
+      const result = await signup(
+        formData.loginId,
+        formData.email,
+        formData.password,
+        formData.confirmPassword
+      );
 
-    if (result.success) {
-      navigate('/dashboard');
-    } else {
-      setErrors(result.errors || {});
+      if (result.success) {
+        navigate('/dashboard');
+      } else {
+        setErrors(result.errors || {});
+        setLoading(false);
+      }
+    } catch {
+      setErrors({ loginId: 'Signup failed. Please try again.' });
       setLoading(false);
     }
   };

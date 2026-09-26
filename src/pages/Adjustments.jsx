@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import AppLayout from '../components/AppLayout';
-import { getAdjustments, saveAdjustment, getProducts, getLocations, ensureProductLocations } from '../utils/inventoryStorage';
+import { apiGetAdjustments, apiCreateAdjustment, apiGetProducts, apiGetLocations, apiGetRecordedStock } from '../utils/api';
 import '../styles/app.css';
 
 export default function Adjustments() {
@@ -11,30 +11,37 @@ export default function Adjustments() {
   const [formData, setFormData] = useState({ productId: '', location: '', physicalCount: '', notes: '' });
   const [recordedStock, setRecordedStock] = useState(0);
   const [error, setError] = useState('');
+  const [loading, setLoading] = useState(false);
 
   useEffect(() => {
     loadData();
   }, []);
 
-  const loadData = () => {
-    setAdjustments(getAdjustments() || []);
-    setProducts(getProducts() || []);
-    setLocations(getLocations() || []);
+  const loadData = async () => {
+    try {
+      const [adjustmentsData, productsData, locationsData] = await Promise.all([
+        apiGetAdjustments(),
+        apiGetProducts(),
+        apiGetLocations()
+      ]);
+      setAdjustments(adjustmentsData || []);
+      setProducts(productsData || []);
+      setLocations(locationsData || []);
+    } catch (err) {
+      console.error('Failed to load data:', err);
+    }
   };
 
+  // Fetch recorded stock when product+location change
   useEffect(() => {
     if (formData.productId && formData.location) {
-      const product = products.find(p => p.id === formData.productId);
-      if (product) {
-        const prodWithLocs = ensureProductLocations(product, locations);
-        setRecordedStock(prodWithLocs.locations[formData.location] || 0);
-      } else {
-        setRecordedStock(0);
-      }
+      apiGetRecordedStock(formData.productId, formData.location)
+        .then(data => setRecordedStock(data.recordedStock))
+        .catch(() => setRecordedStock(0));
     } else {
       setRecordedStock(0);
     }
-  }, [formData.productId, formData.location, products, locations]);
+  }, [formData.productId, formData.location]);
 
   const handleAddAdjustment = () => {
     setFormData({ productId: '', location: '', physicalCount: '', notes: '' });
@@ -46,7 +53,7 @@ export default function Adjustments() {
     setShowModal(false);
   };
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
     setError('');
 
@@ -61,16 +68,23 @@ export default function Adjustments() {
       return;
     }
 
-    const result = saveAdjustment({
-      ...formData,
-      physicalCount: physical
-    });
+    setLoading(true);
+    try {
+      const result = await apiCreateAdjustment({
+        ...formData,
+        physicalCount: physical
+      });
 
-    if (result && result.success === false) {
-      setError(result.message || 'Failed to save adjustment.');
-    } else {
-      loadData();
-      setShowModal(false);
+      if (result && result.success === false) {
+        setError(result.message || 'Failed to save adjustment.');
+      } else {
+        await loadData();
+        setShowModal(false);
+      }
+    } catch (err) {
+      setError(err.data?.message || 'Failed to save adjustment.');
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -195,7 +209,9 @@ export default function Adjustments() {
 
               <div className="modal-actions">
                 <button type="button" className="btn-cancel" onClick={handleModalClose}>Cancel</button>
-                <button type="submit" className="btn-primary">Save Adjustment</button>
+                <button type="submit" className="btn-primary" disabled={loading}>
+                  {loading ? 'Saving...' : 'Save Adjustment'}
+                </button>
               </div>
             </form>
           </div>

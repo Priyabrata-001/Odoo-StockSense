@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import AppLayout from '../components/AppLayout';
-import { getReceipts, saveReceipt, validateReceipt, getProducts } from '../utils/inventoryStorage';
+import { apiGetReceipts, apiCreateReceipt, apiValidateReceipt, apiGetProducts } from '../utils/api';
 import '../styles/app.css';
 
 export default function Receipts() {
@@ -9,14 +9,23 @@ export default function Receipts() {
   const [showModal, setShowModal] = useState(false);
   const [formData, setFormData] = useState({ supplierName: '', productId: '', quantity: '' });
   const [error, setError] = useState('');
+  const [loading, setLoading] = useState(false);
 
   useEffect(() => {
     loadData();
   }, []);
 
-  const loadData = () => {
-    setReceipts(getReceipts());
-    setProducts(getProducts());
+  const loadData = async () => {
+    try {
+      const [receiptsData, productsData] = await Promise.all([
+        apiGetReceipts(),
+        apiGetProducts()
+      ]);
+      setReceipts(receiptsData);
+      setProducts(productsData);
+    } catch (err) {
+      console.error('Failed to load data:', err);
+    }
   };
 
   const handleAddReceipt = () => {
@@ -29,24 +38,35 @@ export default function Receipts() {
     setShowModal(false);
   };
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
     if (!formData.supplierName || !formData.productId || !formData.quantity || formData.quantity <= 0) {
       setError('Please fill all fields and ensure quantity is greater than 0.');
       return;
     }
 
-    saveReceipt({
-      ...formData,
-      quantity: Number(formData.quantity)
-    });
-    loadData();
-    setShowModal(false);
+    setLoading(true);
+    try {
+      await apiCreateReceipt({
+        ...formData,
+        quantity: Number(formData.quantity)
+      });
+      await loadData();
+      setShowModal(false);
+    } catch (err) {
+      setError(err.data?.error || 'Failed to create receipt.');
+    } finally {
+      setLoading(false);
+    }
   };
 
-  const handleValidate = (id) => {
-    validateReceipt(id);
-    loadData();
+  const handleValidate = async (id) => {
+    try {
+      await apiValidateReceipt(id);
+      await loadData();
+    } catch (err) {
+      alert(err.data?.message || 'Failed to validate receipt.');
+    }
   };
 
   const getProductName = (productId) => {
@@ -163,8 +183,8 @@ export default function Receipts() {
                 <button type="button" className="btn-cancel" onClick={handleModalClose}>
                   Cancel
                 </button>
-                <button type="submit" className="btn-primary">
-                  Create Receipt
+                <button type="submit" className="btn-primary" disabled={loading}>
+                  {loading ? 'Creating...' : 'Create Receipt'}
                 </button>
               </div>
             </form>

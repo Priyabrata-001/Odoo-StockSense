@@ -19,17 +19,22 @@ const Login = () => {
     }
   }, [isAuthenticated, navigate]);
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
     setError('');
     setLoading(true);
 
-    const result = login(loginId, password);
+    try {
+      const result = await login(loginId, password);
 
-    if (result.success) {
-      navigate('/dashboard');
-    } else {
-      setError(result.message || 'Invalid Login ID or Password');
+      if (result.success) {
+        navigate('/dashboard');
+      } else {
+        setError(result.message || 'Invalid Login ID or Password');
+        setLoading(false);
+      }
+    } catch {
+      setError('Login failed. Please try again.');
       setLoading(false);
     }
   };

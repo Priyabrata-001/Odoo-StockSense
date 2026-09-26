@@ -2,19 +2,14 @@ import { useState, useEffect, useMemo } from 'react';
 import { Link } from 'react-router-dom';
 import AppLayout from '../components/AppLayout';
 import { 
-  getProductStats, 
-  getLowStockProducts, 
-  getOutOfStockProducts,
-  getActivityLog, 
-  seedProducts, 
-  getReceipts, 
-  getDeliveries, 
-  getTransfers, 
-  getAdjustments, 
-  getCategories, 
-  getWarehouses,
-  getProducts
-} from '../utils/inventoryStorage';
+  apiGetProductStats, 
+  apiGetProducts,
+  apiGetCategories,
+  apiGetReceipts, 
+  apiGetDeliveries, 
+  apiGetTransfers,
+  apiGetLocationsFull
+} from '../utils/api';
 import '../styles/app.css';
 
 export default function Dashboard() {
@@ -25,8 +20,6 @@ export default function Dashboard() {
   });
   
   const [allProducts, setAllProducts] = useState([]);
-  const [allLowStock, setAllLowStock] = useState([]);
-  const [allActivity, setAllActivity] = useState([]);
   
   // KPI raw data
   const [allReceipts, setAllReceipts] = useState([]);
@@ -44,35 +37,31 @@ export default function Dashboard() {
   const [categoriesList, setCategoriesList] = useState([]);
 
   useEffect(() => {
-    seedProducts();
-    setStats(getProductStats());
-    setAllProducts(getProducts() || []);
-    const low = getLowStockProducts() || [];
-    const out = getOutOfStockProducts() || [];
-    setAllLowStock([...out, ...low]);
-    setAllActivity(getActivityLog() || []);
-    
-    setAllReceipts(getReceipts() || []);
-    setAllDeliveries(getDeliveries() || []);
-    setAllTransfers(getTransfers() || []);
-    
-    setWarehousesList(getWarehouses() || []);
-    setCategoriesList(getCategories() || []);
+    loadDashboardData();
   }, []);
 
-  const formatTimeAgo = (timestamp) => {
-    const now = new Date();
-    const date = new Date(timestamp);
-    const diffMs = now - date;
-    const diffMins = Math.floor(diffMs / 60000);
-    const diffHours = Math.floor(diffMs / 3600000);
-    const diffDays = Math.floor(diffMs / 86400000);
-    
-    if (diffMins < 1) return 'Just now';
-    if (diffMins < 60) return `${diffMins}m ago`;
-    if (diffHours < 24) return `${diffHours}h ago`;
-    if (diffDays < 7) return `${diffDays}d ago`;
-    return date.toLocaleDateString();
+  const loadDashboardData = async () => {
+    try {
+      const [statsData, productsData, receiptsData, deliveriesData, transfersData, warehousesData, categoriesData] = await Promise.all([
+        apiGetProductStats(),
+        apiGetProducts(),
+        apiGetReceipts(),
+        apiGetDeliveries(),
+        apiGetTransfers(),
+        apiGetLocationsFull(),
+        apiGetCategories()
+      ]);
+
+      setStats(statsData);
+      setAllProducts(productsData || []);
+      setAllReceipts(receiptsData || []);
+      setAllDeliveries(deliveriesData || []);
+      setAllTransfers(transfersData || []);
+      setWarehousesList(warehousesData || []);
+      setCategoriesList(categoriesData || []);
+    } catch (err) {
+      console.error('Failed to load dashboard data:', err);
+    }
   };
 
   const clearFilters = () => {
@@ -81,45 +70,6 @@ export default function Dashboard() {
     setWarehouse('All Warehouses');
     setCategory('All Categories');
   };
-
-  // --- FILTER LOGIC ---
-  const filteredActivity = useMemo(() => {
-    return allActivity.filter(act => {
-      // 1. DocType match
-      let actDocType = 'Other';
-      if (act.type.includes('receipt')) actDocType = 'Receipt';
-      else if (act.type.includes('delivery')) actDocType = 'Delivery';
-      else if (act.type.includes('transfer')) actDocType = 'Transfer';
-      else if (act.type.includes('adjust')) actDocType = 'Adjustment';
-      
-      if (docType !== 'All Types' && actDocType !== docType) return false;
-
-      // 2. Status match
-      let actStatus = 'Other';
-      if (act.type.includes('validated')) actStatus = 'Validated';
-      else if (act.type.includes('created')) actStatus = 'Created';
-      else if (act.type.includes('picked')) actStatus = 'Picked';
-      else if (act.type.includes('packed')) actStatus = 'Packed';
-      else if (act.type.includes('pending')) actStatus = 'Pending';
-      
-      if (status !== 'All Statuses' && actStatus.toLowerCase() !== status.toLowerCase()) return false;
-
-      // 3. Category match (lookup product)
-      if (category !== 'All Categories') {
-        if (!act.productId) return false;
-        const p = allProducts.find(x => x.id === act.productId);
-        if (!p || p.category !== category) return false;
-      }
-
-      // 4. Warehouse match (heuristic: check description or location data)
-      if (warehouse !== 'All Warehouses') {
-        // Just checking description text is a viable frontend trick for activity log
-        if (!act.description.toLowerCase().includes(warehouse.toLowerCase())) return false;
-      }
-
-      return true;
-    }).slice(0, 5);
-  }, [allActivity, allProducts, docType, status, category, warehouse]);
 
   const filteredLowStock = useMemo(() => {
     return allProducts.filter(p => {
@@ -244,33 +194,8 @@ export default function Dashboard() {
         </Link>
       </div>
 
-      {/* Two-column grid: Activity + Low Stock */}
+      {/* Low Stock Section */}
       <div className="dashboard-grid">
-        {/* Recent Activity */}
-        <div className="dashboard-section">
-          <div className="section-header">
-            <h2 className="section-title">Recent Activity</h2>
-          </div>
-          <div className="activity-list">
-            {filteredActivity.length === 0 ? (
-              <p style={{ color: 'var(--text-muted)', fontSize: '14px' }}>No recent activity matches your filters</p>
-            ) : (
-              filteredActivity.map(activity => (
-                <div key={activity.id} className="activity-item">
-                  <div className={`activity-icon ${activity.type.includes('added') ? 'added' : activity.type.includes('deleted') ? 'deleted' : 'updated'}`}>
-                    {activity.type.includes('added') ? '➕' : activity.type.includes('deleted') ? '🗑️' : '✏️'}
-                  </div>
-                  <div className="activity-text">
-                    <p>{activity.description}</p>
-                    <span>{formatTimeAgo(activity.timestamp)}</span>
-                  </div>
-                </div>
-              ))
-            )}
-          </div>
-        </div>
-
-        {/* Low Stock Alerts */}
         <div className="dashboard-section">
           <div className="section-header">
             <h2 className="section-title">Low Stock Alerts</h2>

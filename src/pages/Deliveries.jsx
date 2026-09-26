@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import AppLayout from '../components/AppLayout';
-import { getDeliveries, saveDelivery, updateDeliveryStatus, getProducts } from '../utils/inventoryStorage';
+import { apiGetDeliveries, apiCreateDelivery, apiUpdateDeliveryStatus, apiGetProducts } from '../utils/api';
 import '../styles/app.css';
 
 export default function Deliveries() {
@@ -9,14 +9,23 @@ export default function Deliveries() {
   const [showModal, setShowModal] = useState(false);
   const [formData, setFormData] = useState({ productId: '', quantity: '' });
   const [error, setError] = useState('');
+  const [loading, setLoading] = useState(false);
 
   useEffect(() => {
     loadData();
   }, []);
 
-  const loadData = () => {
-    setDeliveries(getDeliveries() || []);
-    setProducts(getProducts() || []);
+  const loadData = async () => {
+    try {
+      const [deliveriesData, productsData] = await Promise.all([
+        apiGetDeliveries(),
+        apiGetProducts()
+      ]);
+      setDeliveries(deliveriesData || []);
+      setProducts(productsData || []);
+    } catch (err) {
+      console.error('Failed to load data:', err);
+    }
   };
 
   const handleAddDelivery = () => {
@@ -29,23 +38,34 @@ export default function Deliveries() {
     setShowModal(false);
   };
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
     if (!formData.productId || formData.quantity <= 0) {
       setError('Please select a product and enter a valid quantity');
       return;
     }
-    saveDelivery(formData);
-    loadData();
-    handleModalClose();
+    setLoading(true);
+    try {
+      await apiCreateDelivery({
+        productId: formData.productId,
+        quantity: parseInt(formData.quantity) || 0
+      });
+      await loadData();
+      handleModalClose();
+    } catch (err) {
+      setError(err.data?.error || 'Failed to create delivery.');
+    } finally {
+      setLoading(false);
+    }
   };
 
-  const handleStatusUpdate = (id, newStatus) => {
-    const result = updateDeliveryStatus(id, newStatus);
-    if (result && result.success === false) {
-      alert(result.message);
+  const handleStatusUpdate = async (id, newStatus) => {
+    try {
+      await apiUpdateDeliveryStatus(id, newStatus);
+      await loadData();
+    } catch (err) {
+      alert(err.data?.message || 'Failed to update delivery status.');
     }
-    loadData();
   };
 
   const getProductName = (productId) => {
@@ -133,7 +153,7 @@ export default function Deliveries() {
                   <option value="">Select a product</option>
                   {products.map(product => (
                     <option key={product.id} value={product.id}>
-                      {product.name} (Stock: {product.quantity})
+                      {product.name} (Stock: {product.currentStock})
                     </option>
                   ))}
                 </select>
@@ -153,7 +173,9 @@ export default function Deliveries() {
 
               <div className="modal-actions">
                 <button type="button" className="btn-cancel" onClick={handleModalClose}>Cancel</button>
-                <button type="submit" className="btn-primary">Create Order</button>
+                <button type="submit" className="btn-primary" disabled={loading}>
+                  {loading ? 'Creating...' : 'Create Order'}
+                </button>
               </div>
             </form>
           </div>

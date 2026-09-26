@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import AppLayout from '../components/AppLayout'
-import { getTransfers, saveTransfer, validateTransfer, getProducts, getLocations } from '../utils/inventoryStorage'
+import { apiGetTransfers, apiCreateTransfer, apiValidateTransfer, apiGetProducts, apiGetLocations } from '../utils/api'
 import '../styles/app.css'
 
 export default function Transfers() {
@@ -10,11 +10,21 @@ export default function Transfers() {
   const [showModal, setShowModal] = useState(false);
   const [formData, setFormData] = useState({ productId: '', quantity: '', sourceLocation: '', destinationLocation: '' });
   const [error, setError] = useState('');
+  const [loading, setLoading] = useState(false);
 
-  const loadData = () => {
-    setTransfers(getTransfers() || []);
-    setProducts(getProducts() || []);
-    setLocations(getLocations() || []);
+  const loadData = async () => {
+    try {
+      const [transfersData, productsData, locationsData] = await Promise.all([
+        apiGetTransfers(),
+        apiGetProducts(),
+        apiGetLocations()
+      ]);
+      setTransfers(transfersData || []);
+      setProducts(productsData || []);
+      setLocations(locationsData || []);
+    } catch (err) {
+      console.error('Failed to load data:', err);
+    }
   };
 
   useEffect(() => {
@@ -31,7 +41,7 @@ export default function Transfers() {
     setShowModal(false);
   };
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
     setError('');
     const { productId, quantity, sourceLocation, destinationLocation } = formData;
@@ -51,26 +61,34 @@ export default function Transfers() {
       return;
     }
 
-    saveTransfer({
-      ...formData,
-      quantity: Number(quantity)
-    });
-    loadData();
-    setShowModal(false);
+    setLoading(true);
+    try {
+      await apiCreateTransfer({
+        ...formData,
+        quantity: Number(quantity)
+      });
+      await loadData();
+      setShowModal(false);
+    } catch (err) {
+      setError(err.data?.error || 'Failed to create transfer.');
+    } finally {
+      setLoading(false);
+    }
   };
 
-  const handleValidate = (id) => {
-    const result = validateTransfer(id);
-    if (result && result.success === false) {
-      window.alert(result.message);
+  const handleValidate = async (id) => {
+    try {
+      await apiValidateTransfer(id);
+      await loadData();
+    } catch (err) {
+      window.alert(err.data?.message || 'Failed to validate transfer.');
     }
-    loadData();
   };
 
   return (
     <AppLayout pageTitle="Internal Transfers">
       <div className="products-toolbar">
-        <div></div> {/* empty flex spacer */}
+        <div></div>
         <button className="add-product-btn" onClick={handleAddTransfer}>
           + New Transfer
         </button>
@@ -143,7 +161,7 @@ export default function Transfers() {
                 >
                   <option value="">Select a product...</option>
                   {products.map(p => (
-                    <option key={p.id} value={p.id}>{p.name} (Stock: {p.quantity})</option>
+                    <option key={p.id} value={p.id}>{p.name} (Stock: {p.currentStock})</option>
                   ))}
                 </select>
               </div>
@@ -193,7 +211,9 @@ export default function Transfers() {
 
               <div className="modal-actions">
                 <button type="button" className="btn-cancel" onClick={handleModalClose}>Cancel</button>
-                <button type="submit" className="btn-primary">Create Transfer</button>
+                <button type="submit" className="btn-primary" disabled={loading}>
+                  {loading ? 'Creating...' : 'Create Transfer'}
+                </button>
               </div>
             </form>
           </div>

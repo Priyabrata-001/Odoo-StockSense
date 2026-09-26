@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { saveProduct, updateProduct, getProductBySku } from '../utils/inventoryStorage';
+import { apiCreateProduct, apiUpdateProduct } from '../utils/api';
 
 export default function ProductModal({ product, onClose }) {
   const categories = ['Electronics', 'Office Supplies', 'Furniture', 'Packaging', 'Raw Materials', 'Safety Equipment', 'Tools', 'Other'];
@@ -57,15 +57,8 @@ export default function ProductModal({ product, onClose }) {
     setLoading(true);
 
     try {
-      const existingProduct = getProductBySku(formData.sku.trim());
-      if (existingProduct && (!product || existingProduct.id !== product.id)) {
-        setErrors({ sku: 'SKU must be unique' });
-        setLoading(false);
-        return;
-      }
-
       if (product) {
-        updateProduct(product.id, {
+        await apiUpdateProduct(product.id, {
           name: formData.name.trim(),
           sku: formData.sku.trim(),
           category: formData.category,
@@ -73,20 +66,23 @@ export default function ProductModal({ product, onClose }) {
           lowStockThreshold: Number(formData.lowStockThreshold) || 0
         });
       } else {
-        const initialStockNum = Number(formData.initialStock);
-        saveProduct({
+        await apiCreateProduct({
           name: formData.name.trim(),
           sku: formData.sku.trim(),
           category: formData.category,
           unit: formData.unit,
-          initialStock: initialStockNum,
-          currentStock: initialStockNum,
+          initialStock: Number(formData.initialStock),
           lowStockThreshold: Number(formData.lowStockThreshold) || 0
         });
       }
       onClose();
     } catch (err) {
-      console.error(err);
+      const msg = err.data?.error || 'Failed to save product';
+      if (msg.toLowerCase().includes('sku')) {
+        setErrors({ sku: msg });
+      } else {
+        setErrors({ name: msg });
+      }
     } finally {
       setLoading(false);
     }
