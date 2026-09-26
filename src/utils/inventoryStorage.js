@@ -680,3 +680,79 @@ export const saveAdjustment = (adjustmentData) => {
   
   return { success: true, adjustment: newAdjustment };
 };
+
+
+// ==========================================
+// WAREHOUSES
+// ==========================================
+
+const WAREHOUSES_KEY = 'stocksense_warehouses';
+
+export const getWarehouses = () => {
+  const defaultWarehouses = [
+    {
+      id: 'wh-1',
+      name: 'Main Store',
+      code: 'WH-MAIN',
+      location: 'Downtown Facility',
+      status: 'Active',
+      createdAt: new Date().toISOString()
+    },
+    {
+      id: 'wh-2',
+      name: 'Production Rack',
+      code: 'WH-PROD',
+      location: 'Factory Floor',
+      status: 'Active',
+      createdAt: new Date().toISOString()
+    }
+  ];
+  return getFromStorage(WAREHOUSES_KEY, defaultWarehouses);
+};
+
+export const saveWarehouse = (warehouseData) => {
+  const warehouses = getWarehouses();
+  const newWarehouse = {
+    ...warehouseData,
+    id: 'wh-' + Date.now().toString(),
+    createdAt: new Date().toISOString()
+  };
+  
+  warehouses.push(newWarehouse);
+  saveToStorage(WAREHOUSES_KEY, warehouses);
+  
+  addActivity(
+    'warehouse_added',
+    'Added new warehouse: ' + newWarehouse.name,
+    newWarehouse.id,
+    newWarehouse.name
+  );
+  
+  return newWarehouse;
+};
+
+export const updateWarehouse = (id, updates) => {
+  const warehouses = getWarehouses();
+  const index = warehouses.findIndex(w => w.id === id);
+  
+  if (index === -1) return null;
+  
+  const existingWarehouse = warehouses[index];
+  const updatedWarehouse = {
+    ...existingWarehouse,
+    ...updates,
+    updatedAt: new Date().toISOString()
+  };
+  
+  warehouses[index] = updatedWarehouse;
+  saveToStorage(WAREHOUSES_KEY, warehouses);
+  
+  addActivity(
+    'warehouse_updated',
+    'Updated warehouse: ' + updatedWarehouse.name,
+    updatedWarehouse.id,
+    updatedWarehouse.name
+  );
+  
+  return updatedWarehouse;
+};

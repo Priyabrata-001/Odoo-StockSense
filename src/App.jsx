@@ -11,6 +11,7 @@ import Deliveries from './pages/Deliveries';
 import Transfers from './pages/Transfers';
 import Adjustments from './pages/Adjustments';
 import StockLedger from './pages/StockLedger';
+import Warehouses from './pages/Warehouses';
 import './index.css';
 
 function App() {
@@ -74,6 +75,14 @@ function App() {
             element={
               <ProtectedRoute>
                 <StockLedger />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/warehouses"
+            element={
+              <ProtectedRoute>
+                <Warehouses />
               </ProtectedRoute>
             }
           />

@@ -29,10 +29,6 @@ export default function AppLayout({ children, pageTitle }) {
     if (isMobile) setSidebarOpen(false);
   };
 
-  const comingSoonItems = [
-    { name: 'Warehouses', icon: '🏭' }
-  ];
-
   return (
     <div className="app-layout">
       {/* Sidebar */}
@@ -96,16 +92,14 @@ export default function AppLayout({ children, pageTitle }) {
           >
             <span className="nav-icon">📒</span> Stock Ledger
           </NavLink>
+          <NavLink
+            to="/warehouses"
+            className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`}
+            onClick={handleNavClick}
+          >
+            <span className="nav-icon">🏭</span> Warehouses
+          </NavLink>
 
-          <div className="nav-section-label">Coming Soon</div>
-
-          {comingSoonItems.map(item => (
-            <div key={item.name} className="nav-item disabled">
-              <span className="nav-icon">{item.icon}</span>
-              {item.name}
-              <span className="coming-soon-badge">Soon</span>
-            </div>
-          ))}
         </nav>
 
         <div className="sidebar-footer">
