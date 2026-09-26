@@ -11,6 +11,8 @@ node_modules
 dist
 dist-ssr
 *.local
+PROJECT_DOCUMENTATION.md
+test_workflow.ps1
 
 # Editor directories and files
 .vscode/*

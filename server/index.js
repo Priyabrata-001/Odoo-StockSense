@@ -16,6 +16,12 @@ const PORT = process.env.PORT || 3001;
 app.use(cors());
 app.use(express.json());
 
+// Terminal Logger to show DB/API activity
+app.use((req, res, next) => {
+  console.log(`[Backend/DB] Received ${req.method} request at ${req.url}`);
+  next();
+});
+
 // Routes
 app.use('/api/auth', authRouter);
 app.use('/api/products', productsRouter);

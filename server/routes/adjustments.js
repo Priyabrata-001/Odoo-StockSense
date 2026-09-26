@@ -56,7 +56,7 @@ router.post('/', (req, res) => {
     }
 
     // Update total product stock
-    db.prepare('UPDATE products SET currentStock = currentStock + ?, updatedAt = datetime("now") WHERE id = ?')
+    db.prepare(`UPDATE products SET currentStock = currentStock + ?, updatedAt = datetime('now') WHERE id = ?`)
       .run(difference, productId);
 
     // Get resulting stock

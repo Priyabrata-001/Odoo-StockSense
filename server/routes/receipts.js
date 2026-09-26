@@ -55,7 +55,7 @@ router.put('/:id/validate', (req, res) => {
     const qty = Number(receipt.quantity);
 
     // Increase product stock
-    db.prepare('UPDATE products SET currentStock = currentStock + ?, updatedAt = datetime("now") WHERE id = ?')
+    db.prepare(`UPDATE products SET currentStock = currentStock + ?, updatedAt = datetime('now') WHERE id = ?`)
       .run(qty, receipt.productId);
 
     // Update location stock (default: Main Store)
@@ -70,7 +70,7 @@ router.put('/:id/validate', (req, res) => {
     }
 
     // Update receipt status
-    db.prepare('UPDATE receipts SET status = "VALIDATED", updatedAt = datetime("now") WHERE id = ?')
+    db.prepare(`UPDATE receipts SET status = 'VALIDATED', updatedAt = datetime('now') WHERE id = ?`)
       .run(req.params.id);
 
     // Get resulting stock

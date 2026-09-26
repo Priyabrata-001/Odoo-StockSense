@@ -68,7 +68,7 @@ router.put('/:id/status', (req, res) => {
       }
 
       // Decrease product stock
-      db.prepare('UPDATE products SET currentStock = currentStock - ?, updatedAt = datetime("now") WHERE id = ?')
+      db.prepare(`UPDATE products SET currentStock = currentStock - ?, updatedAt = datetime('now') WHERE id = ?`)
         .run(qty, delivery.productId);
 
       // Update location stock
@@ -89,7 +89,7 @@ router.put('/:id/status', (req, res) => {
       ).run(delivery.productId, qty, delivery.id, updatedProduct.currentStock);
     }
 
-    db.prepare('UPDATE deliveries SET status = ?, updatedAt = datetime("now") WHERE id = ?')
+    db.prepare(`UPDATE deliveries SET status = ?, updatedAt = datetime('now') WHERE id = ?`)
       .run(status, req.params.id);
 
     return { success: true };

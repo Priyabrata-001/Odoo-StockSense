@@ -84,7 +84,7 @@ router.put('/:id/validate', (req, res) => {
     // Total company stock remains unchanged — no update to products.currentStock
 
     // Update transfer status
-    db.prepare('UPDATE transfers SET status = "VALIDATED", updatedAt = datetime("now") WHERE id = ?')
+    db.prepare(`UPDATE transfers SET status = 'VALIDATED', updatedAt = datetime('now') WHERE id = ?`)
       .run(req.params.id);
 
     // Record movement

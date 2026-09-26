@@ -59,7 +59,7 @@ router.post('/signup', (req, res) => {
   }
 
   const result = db.prepare(
-    'INSERT INTO users (loginId, email, password, createdAt) VALUES (?, ?, ?, datetime("now"))'
+    "INSERT INTO users (loginId, email, password, createdAt) VALUES (?, ?, ?, datetime('now'))"
   ).run(trimmedLogin, trimmedEmail, password);
 
   const newUser = { id: result.lastInsertRowid, loginId: trimmedLogin, email: trimmedEmail };

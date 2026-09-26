@@ -7,16 +7,21 @@ async function request(path, options = {}) {
     ...options,
   };
 
+  const method = options.method || 'GET';
+  console.log(`[Frontend] Sending ${method} request to DB via API: ${url}`, options.body ? JSON.parse(options.body) : '');
+
   const response = await fetch(url, config);
   const data = await response.json();
 
   if (!response.ok) {
+    console.error(`[Frontend] DB/API Error on ${method} ${url} - Status: ${response.status}`, data);
     const error = new Error(data.message || data.error || 'Request failed');
     error.data = data;
     error.status = response.status;
     throw error;
   }
 
+  console.log(`[Frontend] DB/API Success on ${method} ${url} - Data Received:`, data);
   return data;
 }
 
