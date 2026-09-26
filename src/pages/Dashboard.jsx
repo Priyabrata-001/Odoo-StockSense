@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import AppLayout from '../components/AppLayout';
-import { getProductStats, getLowStockProducts, getActivityLog, seedProducts, getReceipts, getDeliveries } from '../utils/inventoryStorage';
+import { getProductStats, getLowStockProducts, getActivityLog, seedProducts, getReceipts, getDeliveries, getTransfers } from '../utils/inventoryStorage';
 import '../styles/app.css';
 
 export default function Dashboard() {
@@ -15,6 +15,7 @@ export default function Dashboard() {
 
   const [pendingReceipts, setPendingReceipts] = useState(0);
   const [pendingDeliveries, setPendingDeliveries] = useState(0);
+  const [pendingTransfers, setPendingTransfers] = useState(0);
 
   useEffect(() => {
     seedProducts();
@@ -23,6 +24,7 @@ export default function Dashboard() {
     setRecentActivity(getActivityLog(5));
     setPendingReceipts(getReceipts().filter(r => r.status === 'PENDING').length);
     setPendingDeliveries(getDeliveries().filter(d => d.status !== 'VALIDATED').length);
+    setPendingTransfers(getTransfers().filter(t => t.status === 'PENDING').length);
   }, []);
 
   const formatTimeAgo = (timestamp) => {
@@ -71,8 +73,8 @@ export default function Dashboard() {
         {/* Internal Transfers */}
         <div className="kpi-card">
           <div className="kpi-icon transfers">🔄</div>
-          <div className="kpi-value">0</div>
-          <div className="kpi-label">Internal Transfers</div>
+          <div className="kpi-value">{pendingTransfers}</div>
+          <div className="kpi-label">Pending Transfers</div>
         </div>
       </div>
 

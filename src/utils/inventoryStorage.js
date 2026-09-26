@@ -450,6 +450,8 @@ export const validateReceipt = (id) => {
   
   const product = products[productIndex];
   product.currentStock += Number(receipt.quantity);
+  product.locations = product.locations || { "Main Store": product.currentStock - Number(receipt.quantity) };
+  product.locations["Main Store"] = (product.locations["Main Store"] || 0) + Number(receipt.quantity);
   product.updatedAt = new Date().toISOString();
   saveToStorage(PRODUCTS_KEY, products);
   
@@ -515,6 +517,8 @@ export const updateDeliveryStatus = (id, status) => {
     }
     
     product.currentStock -= Number(delivery.quantity);
+    product.locations = product.locations || { "Main Store": product.currentStock + Number(delivery.quantity) };
+    product.locations["Main Store"] = (product.locations["Main Store"] || 0) - Number(delivery.quantity);
     product.updatedAt = new Date().toISOString();
     saveToStorage(PRODUCTS_KEY, products);
     
@@ -537,4 +541,142 @@ export const updateDeliveryStatus = (id, status) => {
   saveToStorage(DELIVERIES_KEY, deliveries);
   
   return { success: true };
+};
+
+// ==========================================
+// TRANSFERS & ADJUSTMENTS
+// ==========================================
+
+const TRANSFERS_KEY = 'stocksense_transfers';
+const ADJUSTMENTS_KEY = 'stocksense_adjustments';
+
+export const getLocations = () => ['Main Store', 'Production Rack', 'Warehouse A'];
+
+// Helper to ensure product has locations
+export const ensureProductLocations = (product) => {
+  if (!product.locations) {
+    product.locations = { 'Main Store': product.currentStock || 0 };
+  }
+  return product;
+};
+
+// Transfers
+export const getTransfers = () => {
+  return getFromStorage(TRANSFERS_KEY);
+};
+
+export const saveTransfer = (transferData) => {
+  const transfers = getTransfers();
+  const newTransfer = {
+    ...transferData,
+    id: Date.now().toString(),
+    status: 'PENDING',
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString()
+  };
+  
+  transfers.push(newTransfer);
+  saveToStorage(TRANSFERS_KEY, transfers);
+  
+  addActivity(
+    'transfer_created',
+    'Created transfer of ' + newTransfer.quantity + ' units from ' + newTransfer.sourceLocation + ' to ' + newTransfer.destinationLocation,
+    newTransfer.productId
+  );
+  
+  return newTransfer;
+};
+
+export const validateTransfer = (id) => {
+  const transfers = getTransfers();
+  const index = transfers.findIndex(t => t.id === id);
+  if (index === -1) return { success: false, message: 'Transfer not found' };
+  
+  const transfer = transfers[index];
+  if (transfer.status === 'VALIDATED') return { success: false, message: 'Already validated' };
+  
+  // Check stock in source location
+  const products = getProducts();
+  const productIndex = products.findIndex(p => p.id === transfer.productId);
+  if (productIndex === -1) return { success: false, message: 'Product not found' };
+  
+  let product = products[productIndex];
+  product = ensureProductLocations(product);
+  
+  const sourceStock = product.locations[transfer.sourceLocation] || 0;
+  if (sourceStock < Number(transfer.quantity)) {
+    return { success: false, message: 'Insufficient stock in ' + transfer.sourceLocation + '. Available: ' + sourceStock };
+  }
+  
+  // Update locations
+  product.locations[transfer.sourceLocation] -= Number(transfer.quantity);
+  product.locations[transfer.destinationLocation] = (product.locations[transfer.destinationLocation] || 0) + Number(transfer.quantity);
+  product.updatedAt = new Date().toISOString();
+  saveToStorage(PRODUCTS_KEY, products);
+  
+  // Update transfer
+  transfer.status = 'VALIDATED';
+  transfer.updatedAt = new Date().toISOString();
+  saveToStorage(TRANSFERS_KEY, transfers);
+  
+  addActivity(
+    'transfer_validated',
+    'Validated transfer: ' + transfer.quantity + ' ' + product.unit + ' of ' + product.name + ' (' + transfer.sourceLocation + ' -> ' + transfer.destinationLocation + ')',
+    product.id,
+    product.name
+  );
+  
+  return { success: true };
+};
+
+// Adjustments
+export const getAdjustments = () => {
+  return getFromStorage(ADJUSTMENTS_KEY);
+};
+
+export const saveAdjustment = (adjustmentData) => {
+  const { productId, location, physicalCount, notes } = adjustmentData;
+  const products = getProducts();
+  const productIndex = products.findIndex(p => p.id === productId);
+  if (productIndex === -1) return { success: false, message: 'Product not found' };
+  
+  let product = products[productIndex];
+  product = ensureProductLocations(product);
+  
+  const recordedStock = product.locations[location] || 0;
+  const difference = Number(physicalCount) - recordedStock;
+  
+  if (difference === 0) return { success: false, message: 'No difference to adjust' };
+  
+  // Create adjustment record
+  const adjustments = getAdjustments();
+  const newAdjustment = {
+    id: Date.now().toString(),
+    productId,
+    location,
+    recordedStock,
+    physicalCount: Number(physicalCount),
+    difference,
+    notes,
+    createdAt: new Date().toISOString()
+  };
+  
+  adjustments.push(newAdjustment);
+  saveToStorage(ADJUSTMENTS_KEY, adjustments);
+  
+  // Update product stock
+  product.locations[location] = Number(physicalCount);
+  product.currentStock += difference;
+  product.updatedAt = new Date().toISOString();
+  saveToStorage(PRODUCTS_KEY, products);
+  
+  const diffStr = difference > 0 ? '+' + difference : '' + difference;
+  addActivity(
+    'stock_adjusted',
+    'Adjusted ' + product.name + ' at ' + location + ': ' + diffStr + ' ' + product.unit,
+    product.id,
+    product.name
+  );
+  
+  return { success: true, adjustment: newAdjustment };
 };

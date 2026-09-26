@@ -8,6 +8,8 @@ import Dashboard from './pages/Dashboard';
 import Products from './pages/Products';
 import Receipts from './pages/Receipts';
 import Deliveries from './pages/Deliveries';
+import Transfers from './pages/Transfers';
+import Adjustments from './pages/Adjustments';
 import './index.css';
 
 function App() {
@@ -47,6 +49,22 @@ function App() {
             element={
               <ProtectedRoute>
                 <Deliveries />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/transfers"
+            element={
+              <ProtectedRoute>
+                <Transfers />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/adjustments"
+            element={
+              <ProtectedRoute>
+                <Adjustments />
               </ProtectedRoute>
             }
           />
